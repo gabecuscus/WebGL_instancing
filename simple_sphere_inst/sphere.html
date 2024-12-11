@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script id="vertex-shader" type="x-shader/x-vertex">
+#version 300 es
+precision mediump float;
+
+in vec4 vPosition; // Vertex position
+uniform mat4 model2clip; // Transformation matrix
+uniform sampler2D instanceTexture; // Texture containing offsets
+
+uniform float scrolling_number; // A float value to drive sine wave or other effects
+uniform float u_col;
+uniform float u_row;
+
+uniform float clickToggle;
+
+flat out vec4 instanceData; // Pass instance data to the fragment shader
+
+
+void main() {
+  // Sample the instance data using gl_InstanceID
+  vec4 offset = texelFetch(instanceTexture, ivec2(gl_InstanceID, 0), 0);
+
+  // Calculate this instance's column and row indices
+  float instanceCol = float(gl_InstanceID % textureSize(instanceTexture, 0).x);
+  float instanceRow = float(gl_InstanceID / textureSize(instanceTexture, 0).x);
+
+ 
+  offset.z += 3.0; // Highlight by pushing Z
+
+  if(clickToggle==1.0){
+    if(((abs(offset.y - u_row) < 5.5))&&((abs(offset.x - u_col) < 5.5))){
+    float height_ramp_x = abs(offset.x - u_col) / 5.5;
+    
+    float height_ramp_y = abs(offset.y - u_row) / 5.5;
+    
+    float height_ramp = 1.0 - (height_ramp_x*height_ramp_y);
+
+    offset.z += 5.0* height_ramp;
+    }
+  }else {
+    float height_ramp_x = abs(offset.x - u_col) / 5.5;
+    
+    float height_ramp_y = abs(offset.y - u_row) / 5.5;
+    
+    float height_ramp = 1.0 - (height_ramp_x*height_ramp_y);
+
+    offset.z += 5.0* height_ramp;
+  }
+
+
+
+
+
+
+  // Apply a sine wave based on scrolling_number to modify the y-position
+  //float sineWave = sin(scrolling_number + float(gl_InstanceID) * 0.5); // Offset by instance ID
+  //offset.y += sineWave * 0.1; // Adjust amplitude as needed
+  
+
+  // Transform vertex position
+  gl_Position = model2clip * (vPosition + offset);
+  instanceData = offset; // Pass to fragment shader if needed
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+#version 300 es
+precision mediump float;
+
+// Instance data passed from the vertex shader
+flat in vec4 instanceData;
+
+// Uniforms for lighting, colors, etc.
+uniform vec4 baseColor;
+
+
+
+uniform float scrolling_number; // To synchronize effects
+
+
+
+
+
+out vec4 fragColor;
+
+
+
+
+void main() {
+    // Example 1: Use the instance offset (instanceData.xyz) to modify color
+    vec3 colorVariation = instanceData.xyz * 0.1; // Scale the variation
+    vec4 finalColor = baseColor + vec4(colorVariation, 0.0);
+
+    // Example 2: Modulate alpha based on instanceData.w (if meaningful)
+    finalColor.a = instanceData.w * 0.5 - 0.05; // Map w to [0.5, 1.0]
+    
+    float sineWave = sin(scrolling_number + instanceData.x); // Use instanceData.x for variation
+    vec4 sineWaveEffect = vec4(sineWave * 0.5 + 0.5, 1.0, 1.0, 1.0); // Normalize sine wave to [0, 1]
+
+
+    fragColor = finalColor* sineWaveEffect;// * sineWaveEffect;
+  }
+
+</script>
+
+<script type="text/javascript" src="../Common/webgl-utils_copy.js"></script>
+<script type="text/javascript" src="../Common/initShaders2.js"></script>
+<script type="text/javascript" src="../Common/PVMat.js"></script>
+<script type="text/javascript" src="sphere_S.js"></script>
+<script type="text/javascript" src="view_S.js"></script>
+
+<div>
+zoom 1x <input id="slider" type="range"
+ min="100" max="1000" step="10" value="100" />
+ 10x
+</div>
+
+</head>
+
+<body>
+<button id="MyButton">OrthPers</button>
+<button id="flat">FlatRnd</button>
+<button id="lookAt">Look At</button>
+<button id="ZPlus">z + 0.1</button>
+<button id="ZMinus">z - 0.1</button>
+<button id="VZPlus">vz + 0.1</button>
+<button id="VZMinus">vz - 0.1</button>
+<p>
+<canvas id="gl-canvas" width="960" height="540">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+</body>
+</html>
